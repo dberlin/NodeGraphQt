@@ -1,24 +1,13 @@
 #!/usr/bin/python
+import logging
 import math
 
+from NodeGraphQt.constants import PipeEnum, ITEM_CACHE_MODE, Z_VAL_PIPE, PortTypeEnum, PipeLayoutEnum, \
+    LayoutDirectionEnum, Z_VAL_NODE_WIDGET
+from NodeGraphQt.qgraphics.port import PortItem
 from Qt import QtCore, QtGui, QtWidgets
 
-from NodeGraphQt.constants import (
-    LayoutDirectionEnum,
-    PipeEnum,
-    PipeLayoutEnum,
-    PortTypeEnum,
-    ITEM_CACHE_MODE,
-    Z_VAL_PIPE,
-    Z_VAL_NODE_WIDGET
-)
-from NodeGraphQt.qgraphics.port import PortItem
-
-PIPE_STYLES = {
-    PipeEnum.DRAW_TYPE_DEFAULT.value: QtCore.Qt.SolidLine,
-    PipeEnum.DRAW_TYPE_DASHED.value: QtCore.Qt.DashLine,
-    PipeEnum.DRAW_TYPE_DOTTED.value: QtCore.Qt.DotLine
-}
+logger = logging.getLogger(__name__)
 
 
 class PipeItem(QtWidgets.QGraphicsPathItem):
@@ -32,6 +21,10 @@ class PipeItem(QtWidgets.QGraphicsPathItem):
         self.setAcceptHoverEvents(True)
         self.setFlag(QtWidgets.QGraphicsItem.ItemIsSelectable)
         self.setCacheMode(ITEM_CACHE_MODE)
+        self.setCacheMode(QtWidgets.QGraphicsItem.ItemCoordinateCache)
+
+        self._edge_text_color = (168, 175, 30, 255)
+        self._edge_text_brush = QtGui.QColor(*self._edge_text_color)
 
         self._color = PipeEnum.COLOR.value
         self._style = PipeEnum.DRAW_TYPE_DEFAULT.value
@@ -48,17 +41,32 @@ class PipeItem(QtWidgets.QGraphicsPathItem):
 
         self._dir_pointer = QtWidgets.QGraphicsPolygonItem(self)
         self._dir_pointer.setPolygon(self._poly)
-        self._dir_pointer.setFlag(
-            QtWidgets.QGraphicsPathItem.ItemIsSelectable, False
-        )
-
+        self._dir_pointer.setFlag(QtWidgets.QGraphicsPathItem.ItemIsSelectable, False)
+        self._edge_text = QtWidgets.QGraphicsSimpleTextItem(self)
+        self._edge_text.setFlag(QtWidgets.QGraphicsPathItem.ItemIsSelectable, False)
+        self._edge_text.setBrush(self._edge_text_brush)
+        self.setEdgeText("?")
+        edge_text_font = QtGui.QFont()
+        edge_text_font.setPointSize(18)
+        edge_text_font.setBold(True)
+        self._edge_text.setFont(edge_text_font)
+        self.flip_edge_text_both()
         self.reset()
+        self.lastRotate = 0.0
 
     def __repr__(self):
         in_name = self._input_port.name if self._input_port else ''
         out_name = self._output_port.name if self._output_port else ''
-        return '{}.Pipe(\'{}\', \'{}\')'.format(
-            self.__module__, in_name, out_name)
+        return '{}.Pipe(\'{}\', \'{}\')'.format(self.__module__, in_name, out_name)
+
+    def setEdgeText(self, txt):
+        self._edge_text.setText(txt)
+
+    @staticmethod
+    def getPipeStyle(style):
+        return {PipeEnum.DRAW_TYPE_DEFAULT.value: QtCore.Qt.SolidLine,
+                PipeEnum.DRAW_TYPE_DASHED.value: QtCore.Qt.DashLine,
+                PipeEnum.DRAW_TYPE_DOTTED.value: QtCore.Qt.DotLine}.get(style)
 
     def hoverEnterEvent(self, event):
         self.activate()
@@ -91,13 +99,14 @@ class PipeItem(QtWidgets.QGraphicsPathItem):
                 used to describe the parameters needed to draw.
             widget (QtWidgets.QWidget): not used.
         """
-        painter.save()
 
+        painter.save()
+        logging.debug("Painting!")
         pen = self.pen()
         if self.disabled():
             if not self._active:
                 pen.setColor(QtGui.QColor(*PipeEnum.DISABLED_COLOR.value))
-                pen.setStyle(PIPE_STYLES.get(PipeEnum.DRAW_TYPE_DOTTED.value))
+                pen.setStyle(self.getPipeStyle(PipeEnum.DRAW_TYPE_DOTTED.value))
                 pen.setWidth(3)
 
         painter.setPen(pen)
@@ -118,8 +127,10 @@ class PipeItem(QtWidgets.QGraphicsPathItem):
         """
         updates the pipe direction pointer arrow.
         """
+
         if not (self.input_port and self.output_port):
             self._dir_pointer.setVisible(False)
+            self._edge_text.setVisible(False)
             return
 
         if self.disabled():
@@ -133,15 +144,55 @@ class PipeItem(QtWidgets.QGraphicsPathItem):
         self._dir_pointer.setVisible(True)
         loc_pt = self.path().pointAtPercent(0.49)
         tgt_pt = self.path().pointAtPercent(0.51)
-        radians = math.atan2(tgt_pt.y() - loc_pt.y(),
-                             tgt_pt.x() - loc_pt.x())
+        radians = math.atan2(tgt_pt.y() - loc_pt.y(), tgt_pt.x() - loc_pt.x())
         degrees = math.degrees(radians) - 90
         self._dir_pointer.setRotation(degrees)
-        self._dir_pointer.setPos(self.path().pointAtPercent(0.5))
 
-        cen_x = self.path().pointAtPercent(0.5).x()
-        cen_y = self.path().pointAtPercent(0.5).y()
+        percent = 0.5
+        point = self.path().pointAtPercent(percent)
+        self._dir_pointer.setPos(point)
+        cen_x = point.x()
+        cen_y = point.y()
         dist = math.hypot(tgt_pt.x() - cen_x, tgt_pt.y() - cen_y)
+
+        self._edge_text.setVisible(False)
+        angle = self.path().angleAtPercent(percent)
+        logging.debug(f"Degrees is {degrees}, angle is {angle}")
+        pointer_rect = self._dir_pointer.sceneBoundingRect()
+        logging.debug(f"Object center is {pointer_rect.center()})")
+
+        self._edge_text.setBrush(self._edge_text_brush)
+        self._edge_text.setPos(point)
+
+        # Move the edge text origin point to the same relative position and angle away from the direction pointer.
+
+        # This is equivalent to drawing a circle at radius <bounding box height> with the center at the center of the
+        # direction arrow, and then ensuring the text origin stays on this circle as the angles change. if we just
+        # try to rotate the text without translating it along this circle, it will not stay in the same relative
+        # position and will eventually intersect the line and the arrow.
+        #
+        # # Move to center of direction arrow
+        # self._edge_text.setPos(pointer_rect.center())
+        # # Move out a little bit on the circle around the center
+        # height = self._dir_pointer.boundingRect().height() / 2
+        # angle_radians = math.radians(angle)
+        # self._edge_text.moveBy(math.sin(angle_radians) * height, math.cos(angle_radians) * height)
+        # self._edge_text.setRotation(-angle)
+
+        # Transform by translating to the center of the pointer, then rotating ourselves around it to stay
+        # at a constant relative point and anglefrom it.
+        transformMatrix = self._edge_text.transform()
+        center = pointer_rect.center()
+        mapped_center = self._edge_text.mapFromScene(center)
+        transformMatrix.translate(mapped_center.x(), mapped_center.y())
+        # transformMatrix.rotate(-self.lastRotate)
+        # transformMatrix.rotate(-angle)
+        # Rotate the difference between the current rotation and the new one
+        transformMatrix.rotate((-angle)-self.lastRotate)
+        self.lastRotate = -angle
+
+        self._edge_text.setTransform(transformMatrix)
+        self._edge_text.setVisible(True)
 
         self._dir_pointer.setVisible(True)
         if dist < 0.3:
@@ -231,7 +282,7 @@ class PipeItem(QtWidgets.QGraphicsPathItem):
             self.setPath(path)
         elif self.viewer_pipe_layout() == PipeLayoutEnum.ANGLE.value:
             ctr_offset_y1, ctr_offset_y2 = pos1.y(), pos2.y()
-            distance = abs(ctr_offset_y1 - ctr_offset_y2)/2
+            distance = abs(ctr_offset_y1 - ctr_offset_y2) / 2
             if start_port.port_type == PortTypeEnum.IN.value:
                 ctr_offset_y1 -= distance
                 ctr_offset_y2 += distance
@@ -318,12 +369,9 @@ class PipeItem(QtWidgets.QGraphicsPathItem):
 
         # visibility check for connected pipe.
         if self.input_port and self.output_port:
-            is_visible = all([
-                self._input_port.isVisible(),
-                self._output_port.isVisible(),
-                self._input_port.node.isVisible(),
-                self._output_port.node.isVisible()
-            ])
+            is_visible = all(
+                [self._input_port.isVisible(), self._output_port.isVisible(), self._input_port.node.isVisible(),
+                 self._output_port.node.isVisible()])
             self.setVisible(is_visible)
 
             # don't draw pipe if a port or node is not visible.
@@ -338,15 +386,11 @@ class PipeItem(QtWidgets.QGraphicsPathItem):
         if end_port and not self.viewer().acyclic:
             if end_port.node == start_port.node:
                 if direction is LayoutDirectionEnum.VERTICAL.value:
-                    self._draw_path_cycled_vertical(
-                        start_port, pos1, pos2, path
-                    )
+                    self._draw_path_cycled_vertical(start_port, pos1, pos2, path)
                     self._draw_direction_pointer()
                     return
                 elif direction is LayoutDirectionEnum.HORIZONTAL.value:
-                    self._draw_path_cycled_horizontal(
-                        start_port, pos1, pos2, path
-                    )
+                    self._draw_path_cycled_horizontal(start_port, pos1, pos2, path)
                     self._draw_direction_pointer()
                     return
 
@@ -428,7 +472,7 @@ class PipeItem(QtWidgets.QGraphicsPathItem):
         pen = self.pen()
         pen.setWidth(width)
         pen.setColor(QtGui.QColor(*color))
-        pen.setStyle(PIPE_STYLES.get(style))
+        pen.setStyle(self.getPipeStyle(style))
         pen.setJoinStyle(QtCore.Qt.MiterJoin)
         pen.setCapStyle(QtCore.Qt.RoundCap)
         self.setPen(pen)
@@ -443,23 +487,17 @@ class PipeItem(QtWidgets.QGraphicsPathItem):
         self._dir_pointer.setBrush(QtGui.QColor(*color).darker(200))
 
     def activate(self):
+
         self._active = True
-        self.set_pipe_styling(
-            color=PipeEnum.ACTIVE_COLOR.value,
-            width=3,
-            style=PipeEnum.DRAW_TYPE_DEFAULT.value
-        )
+        self.set_pipe_styling(color=PipeEnum.ACTIVE_COLOR.value, width=3, style=PipeEnum.DRAW_TYPE_DEFAULT.value)
 
     def active(self):
         return self._active
 
     def highlight(self):
+
         self._highlight = True
-        self.set_pipe_styling(
-            color=PipeEnum.HIGHLIGHT_COLOR.value,
-            width=2,
-            style=PipeEnum.DRAW_TYPE_DEFAULT.value
-        )
+        self.set_pipe_styling(color=PipeEnum.HIGHLIGHT_COLOR.value, width=2, style=PipeEnum.DRAW_TYPE_DEFAULT.value)
 
     def highlighted(self):
         return self._highlight
@@ -479,10 +517,7 @@ class PipeItem(QtWidgets.QGraphicsPathItem):
             port1 (PortItem): port item object.
             port2 (PortItem): port item object.
         """
-        ports = {
-            port1.port_type: port1,
-            port2.port_type: port2
-        }
+        ports = {port1.port_type: port1, port2.port_type: port2}
         self.input_port = ports[PortTypeEnum.IN.value]
         self.output_port = ports[PortTypeEnum.OUT.value]
         ports[PortTypeEnum.IN.value].add_pipe(self)
@@ -545,6 +580,14 @@ class PipeItem(QtWidgets.QGraphicsPathItem):
         if self.scene():
             self.scene().removeItem(self)
 
+    def flip_edge_text_horizontal(self):
+        self._edge_text.setTransform(QtGui.QTransform.fromScale(-1, 1))
+
+    def flip_edge_text_vertical(self):
+        self._edge_text.setTransform(QtGui.QTransform.fromScale(1, -1))
+
+    def flip_edge_text_both(self):
+        self._edge_text.setTransform(QtGui.QTransform.fromScale(-1, -1))
 
 class LivePipeItem(PipeItem):
     """
@@ -614,17 +657,11 @@ class LivePipeItem(PipeItem):
         transform = QtGui.QTransform()
         transform.translate(cursor_pos.x(), cursor_pos.y())
         if self.viewer_layout_direction() is LayoutDirectionEnum.VERTICAL.value:
-            text_pos = (
-                cursor_pos.x() + (text_rect.width() / 2.5),
-                cursor_pos.y() - (text_rect.height() / 2)
-            )
+            text_pos = (cursor_pos.x() + (text_rect.width() / 2.5), cursor_pos.y() - (text_rect.height() / 2))
             if start_port.port_type == PortTypeEnum.OUT.value:
                 transform.rotate(180)
         elif self.viewer_layout_direction() is LayoutDirectionEnum.HORIZONTAL.value:
-            text_pos = (
-                cursor_pos.x() - (text_rect.width() / 2),
-                cursor_pos.y() - (text_rect.height() * 1.25)
-            )
+            text_pos = (cursor_pos.x() - (text_rect.width() / 2), cursor_pos.y() - (text_rect.height() * 1.25))
             if start_port.port_type == PortTypeEnum.IN.value:
                 transform.rotate(-90)
             else:
@@ -666,3 +703,4 @@ class LivePipePolygonItem(QtWidgets.QGraphicsPolygonItem):
         painter.setPen(self.pen())
         painter.drawPolygon(self.polygon())
         painter.restore()
+
