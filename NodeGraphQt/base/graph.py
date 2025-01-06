@@ -2152,7 +2152,7 @@ class NodeGraph(QtCore.QObject):
     # --------------------------------------------------------------------------
 
     @staticmethod
-    def _update_node_rank(node, nodes_rank, down_stream=True):
+    def _update_node_rank(node, nodes_rank, port_ordering, port_count, down_stream=True):
         """
         Recursive function for updating the node ranking.
 
@@ -2165,10 +2165,13 @@ class NodeGraph(QtCore.QObject):
             node_values = node.connected_output_nodes().values()
         else:
             node_values = node.connected_input_nodes().values()
-
         connected_nodes = set()
         for nodes in node_values:
             connected_nodes.update(nodes)
+            for connected_node in nodes:
+                port_ordering[connected_node] = port_count[0]
+            # Count is counting what port we are on, not how many nodes are connected to them
+            port_count[0] += 1
 
         rank = nodes_rank[node] + 1
         for n in connected_nodes:
@@ -2176,7 +2179,7 @@ class NodeGraph(QtCore.QObject):
                 nodes_rank[n] = max(nodes_rank[n], rank)
             else:
                 nodes_rank[n] = rank
-            NodeGraph._update_node_rank(n, nodes_rank, down_stream)
+            NodeGraph._update_node_rank(n, nodes_rank, port_ordering, port_count, down_stream)
 
     @staticmethod
     def _compute_node_rank(nodes, down_stream=True):
@@ -2191,10 +2194,12 @@ class NodeGraph(QtCore.QObject):
             dict: {NodeGraphQt.BaseNode: node_rank, ...}
         """
         nodes_rank = {}
+        port_ordering = {}
+        port_count = [0]
         for node in nodes:
             nodes_rank[node] = 0
-            NodeGraph._update_node_rank(node, nodes_rank, down_stream)
-        return nodes_rank
+            NodeGraph._update_node_rank(node, nodes_rank, port_ordering, port_count, down_stream)
+        return nodes_rank, port_ordering
 
     def auto_layout_nodes(self, nodes=None, down_stream=True, start_nodes=None):
         """
@@ -2239,7 +2244,7 @@ class NodeGraph(QtCore.QObject):
         node_views = [n.view for n in nodes]
         nodes_center_0 = self.viewer().nodes_rect_center(node_views)
 
-        nodes_rank = NodeGraph._compute_node_rank(start_nodes, down_stream)
+        nodes_rank, port_ordering = NodeGraph._compute_node_rank(start_nodes, down_stream)
 
         rank_map = {}
         for node, rank in nodes_rank.items():
@@ -2254,7 +2259,7 @@ class NodeGraph(QtCore.QObject):
             current_x = 0
             node_height = 120
             for rank in sorted(range(len(rank_map)), reverse=not down_stream):
-                ranked_nodes = rank_map[rank]
+                ranked_nodes = sorted(rank_map[rank], key=lambda n: port_ordering.get(n, 0))
                 max_width = max([node.view.width for node in ranked_nodes])
                 current_x += max_width
                 current_y = 0
