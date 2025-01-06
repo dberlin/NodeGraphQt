@@ -165,30 +165,21 @@ class PipeItem(QtWidgets.QGraphicsPathItem):
         self._edge_text.setPos(point)
 
         # Move the edge text origin point to the same relative position and angle away from the direction pointer.
-
+        #
         # This is equivalent to drawing a circle at radius <bounding box height> with the center at the center of the
         # direction arrow, and then ensuring the text origin stays on this circle as the angles change. if we just
         # try to rotate the text without translating it along this circle, it will not stay in the same relative
         # position and will eventually intersect the line and the arrow.
         #
-        # # Move to center of direction arrow
-        # self._edge_text.setPos(pointer_rect.center())
-        # # Move out a little bit on the circle around the center
-        # height = self._dir_pointer.boundingRect().height() / 2
-        # angle_radians = math.radians(angle)
-        # self._edge_text.moveBy(math.sin(angle_radians) * height, math.cos(angle_radians) * height)
-        # self._edge_text.setRotation(-angle)
-
         # Transform by translating to the center of the pointer, then rotating ourselves around it to stay
         # at a constant relative point and anglefrom it.
         transformMatrix = self._edge_text.transform()
         center = pointer_rect.center()
         mapped_center = self._edge_text.mapFromScene(center)
         transformMatrix.translate(mapped_center.x(), mapped_center.y())
-        # transformMatrix.rotate(-self.lastRotate)
-        # transformMatrix.rotate(-angle)
         # Rotate the difference between the current rotation and the new one
-        transformMatrix.rotate((-angle)-self.lastRotate)
+        transformMatrix.rotate((-angle) - self.lastRotate)
+        # Flipping through scaling is done in the constructor
         self.lastRotate = -angle
 
         self._edge_text.setTransform(transformMatrix)
