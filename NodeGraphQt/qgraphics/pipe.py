@@ -47,17 +47,20 @@ class PipeItem(QtWidgets.QGraphicsPathItem):
         self._edge_text.setBrush(self._edge_text_brush)
         self.setEdgeText("?")
         edge_text_font = QtGui.QFont()
-        edge_text_font.setPointSize(18)
+        edge_text_font.setPointSize(13)
         edge_text_font.setBold(True)
+        # Flip text horizontally and vertically
+        self._edge_text.setTransform(self._edge_text.transform().scale(-1, -1))
         self._edge_text.setFont(edge_text_font)
-        self.flip_edge_text_both()
         self.reset()
-        self.lastRotate = 0.0
 
     def __repr__(self):
         in_name = self._input_port.name if self._input_port else ''
         out_name = self._output_port.name if self._output_port else ''
         return '{}.Pipe(\'{}\', \'{}\')'.format(self.__module__, in_name, out_name)
+
+    def getEdgeText(self):
+        return self._edge_text.text()
 
     def setEdgeText(self, txt):
         self._edge_text.setText(txt)
@@ -99,7 +102,6 @@ class PipeItem(QtWidgets.QGraphicsPathItem):
                 used to describe the parameters needed to draw.
             widget (QtWidgets.QWidget): not used.
         """
-
         painter.save()
         logging.debug("Painting!")
         pen = self.pen()
@@ -156,8 +158,6 @@ class PipeItem(QtWidgets.QGraphicsPathItem):
         dist = math.hypot(tgt_pt.x() - cen_x, tgt_pt.y() - cen_y)
 
         self._edge_text.setVisible(False)
-        angle = self.path().angleAtPercent(percent)
-        logging.debug(f"Degrees is {degrees}, angle is {angle}")
         pointer_rect = self._dir_pointer.sceneBoundingRect()
         logging.debug(f"Object center is {pointer_rect.center()})")
 
@@ -165,24 +165,26 @@ class PipeItem(QtWidgets.QGraphicsPathItem):
         self._edge_text.setPos(point)
 
         # Move the edge text origin point to the same relative position and angle away from the direction pointer.
-        #
+
         # This is equivalent to drawing a circle at radius <bounding box height> with the center at the center of the
         # direction arrow, and then ensuring the text origin stays on this circle as the angles change. if we just
         # try to rotate the text without translating it along this circle, it will not stay in the same relative
         # position and will eventually intersect the line and the arrow.
-        #
+
         # Transform by translating to the center of the pointer, then rotating ourselves around it to stay
-        # at a constant relative point and anglefrom it.
+        # at a constant relative point and anglefrom it
+        current_angle = self._edge_text.rotation()
+        logging.debug(f"Current degrees is {current_angle}, moving to {degrees + 90}")
+        self._edge_text.setRotation(0)
         transformMatrix = self._edge_text.transform()
         center = pointer_rect.center()
         mapped_center = self._edge_text.mapFromScene(center)
         transformMatrix.translate(mapped_center.x(), mapped_center.y())
-        # Rotate the difference between the current rotation and the new one
-        transformMatrix.rotate((-angle) - self.lastRotate)
-        # Flipping through scaling is done in the constructor
-        self.lastRotate = -angle
-
         self._edge_text.setTransform(transformMatrix)
+        # Rotation accumulates and it's non-trivial to extract the value back out ot the matrix
+        # Because qgraphicsitem always applies things in the same order, we know that this will
+        # be applied at the right point and not screw up the transform matrix.
+        self._edge_text.setRotation(degrees + 90)
         self._edge_text.setVisible(True)
 
         self._dir_pointer.setVisible(True)
@@ -571,14 +573,6 @@ class PipeItem(QtWidgets.QGraphicsPathItem):
         if self.scene():
             self.scene().removeItem(self)
 
-    def flip_edge_text_horizontal(self):
-        self._edge_text.setTransform(QtGui.QTransform.fromScale(-1, 1))
-
-    def flip_edge_text_vertical(self):
-        self._edge_text.setTransform(QtGui.QTransform.fromScale(1, -1))
-
-    def flip_edge_text_both(self):
-        self._edge_text.setTransform(QtGui.QTransform.fromScale(-1, -1))
 
 class LivePipeItem(PipeItem):
     """
@@ -694,4 +688,3 @@ class LivePipePolygonItem(QtWidgets.QGraphicsPolygonItem):
         painter.setPen(self.pen())
         painter.drawPolygon(self.polygon())
         painter.restore()
-
