@@ -1646,4 +1646,6 @@ class NodeViewer(QtWidgets.QGraphicsView):
             from PySide2.QtWidgets import QOpenGLWidget
         elif Qt.IsPyQt5:
             from PyQt5.QtWidgets import QOpenGLWidget
+        elif Qt.IsPySide6:
+            from PySide6.QtOpenGLWidgets import QOpenGLWidget
         self.setViewport(QOpenGLWidget())
