@@ -62,6 +62,7 @@ class NodeViewer(QtWidgets.QGraphicsView):
         """
         super(NodeViewer, self).__init__(parent)
         self.pipe_item_class = PipeItem
+        self.live_pipe_item_class = LivePipeItem
         self.setScene(NodeScene(self))
         self.setRenderHint(QtGui.QPainter.Antialiasing, True)
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
@@ -111,7 +112,7 @@ class NodeViewer(QtWidgets.QGraphicsView):
         self._cursor_text.setFont(font)
         self.scene().addItem(self._cursor_text)
 
-        self._LIVE_PIPE = LivePipeItem()
+        self._LIVE_PIPE = self.live_pipe_item_class()
         self._LIVE_PIPE.setVisible(False)
         self.scene().addItem(self._LIVE_PIPE)
 
@@ -1652,3 +1653,10 @@ class NodeViewer(QtWidgets.QGraphicsView):
 
     def set_pipe_item_class(self, cls):
         self.pipe_item_class = cls
+
+    def set_live_pipe_item_class(self, cls):
+        self.scene().removeItem(self._LIVE_PIPE)
+        self.live_pipe_item_class = cls
+        self._LIVE_PIPE = self.live_pipe_item_class()
+        self._LIVE_PIPE.setVisible(False)
+        self.scene().addItem(self._LIVE_PIPE)
