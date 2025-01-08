@@ -61,7 +61,7 @@ class NodeViewer(QtWidgets.QGraphicsView):
                                                graph controller.
         """
         super(NodeViewer, self).__init__(parent)
-
+        self.pipe_item_class = PipeItem
         self.setScene(NodeScene(self))
         self.setRenderHint(QtGui.QPainter.Antialiasing, True)
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
@@ -1144,7 +1144,7 @@ class NodeViewer(QtWidgets.QGraphicsView):
         establish a new pipe connection.
         (adds a new pipe item to draw between 2 ports)
         """
-        pipe = PipeItem()
+        pipe = self.pipe_item_class()
         self.scene().addItem(pipe)
         pipe.set_connections(start_port, end_port)
         pipe.draw_path(pipe.input_port, pipe.output_port)
@@ -1649,3 +1649,6 @@ class NodeViewer(QtWidgets.QGraphicsView):
         elif Qt.IsPySide6:
             from PySide6.QtOpenGLWidgets import QOpenGLWidget
         self.setViewport(QOpenGLWidget())
+
+    def set_pipe_item_class(self, cls):
+        self.pipe_item_class = cls
