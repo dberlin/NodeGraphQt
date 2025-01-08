@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "NodeGraphQt"
+version = "0.1.0"
+description = ""
+authors = ["Daniel Berlin <dberlin@dberlin.org>"]
+readme = "README.md"
+
+packages = [{ include = "NodeGraphQt" }]
+[tool.poetry.dependencies]
+python = ">=3.12 <=3.13"
+pyside6 = "^6.8.1.1"
+setuptools = "^75.6.0"
+wheel = "^0.45.1"
+qt-py = "^1.4.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
