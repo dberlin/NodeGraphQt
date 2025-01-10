@@ -19,6 +19,11 @@ from NodeGraphQt.qgraphics.node_text_item import NodeTextItem
 from NodeGraphQt.qgraphics.port import PortItem, CustomPortItem
 
 
+class NodeItemSignals(QtCore.QObject):
+    update_input_text = QtCore.Signal(PortItem, str)
+    update_output_text = QtCore.Signal(PortItem, str)
+    redraw_node = QtCore.Signal()
+
 class NodeItem(AbstractNodeItem):
     """
     Base Node item.
@@ -27,7 +32,6 @@ class NodeItem(AbstractNodeItem):
         name (str): name displayed on the node.
         parent (QtWidgets.QGraphicsItem): parent item.
     """
-
     def __init__(self, name='node', parent=None):
         super(NodeItem, self).__init__(name, parent)
         pixmap = QtGui.QPixmap(ICON_NODE_BASE)
@@ -46,6 +50,10 @@ class NodeItem(AbstractNodeItem):
         self._widgets = OrderedDict()
         self._proxy_mode = False
         self._proxy_mode_threshold = 70
+        self.node_item_signals = NodeItemSignals()
+        self.node_item_signals.update_input_text.connect(self.update_input_text_item)
+        self.node_item_signals.update_output_text.connect(self.update_output_text_item)
+        self.node_item_signals.redraw_node.connect(self.draw_node)
 
     def post_init(self, viewer, pos=None):
         """
@@ -1010,6 +1018,22 @@ class NodeItem(AbstractNodeItem):
             port (PortItem): port object.
         """
         self._delete_port(port, self._output_items.pop(port))
+
+    def update_output_text_item(self, port_item, text):
+        """
+        Args:
+            port_item (PortItem): port item.
+            text (str): new text
+        """
+        self._output_items[port_item].setPlainText(text)
+
+    def update_input_text_item(self, port_item, text):
+        """
+        Args:
+            port_item (PortItem): port item.
+            text (str): new text
+        """
+        self._input_items[port_item].setPlainText(text)
 
     def get_input_text_item(self, port_item):
         """
