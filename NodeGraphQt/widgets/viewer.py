@@ -112,7 +112,8 @@ class NodeViewer(QtWidgets.QGraphicsView):
         self._cursor_text.setFont(font)
         self.scene().addItem(self._cursor_text)
 
-        self._LIVE_PIPE = self.live_pipe_item_class()
+
+        self.set_live_pipe_item_class(LivePipeItem)
         self._LIVE_PIPE.setVisible(False)
         self.scene().addItem(self._LIVE_PIPE)
 
@@ -1655,7 +1656,8 @@ class NodeViewer(QtWidgets.QGraphicsView):
         self.pipe_item_class = cls
 
     def set_live_pipe_item_class(self, cls):
-        self.scene().removeItem(self._LIVE_PIPE)
+        if hasattr(self, '_LIVE_PIPE'):
+            self.scene().removeItem(self._LIVE_PIPE)
         self.live_pipe_item_class = cls
         self._LIVE_PIPE = self.live_pipe_item_class()
         self._LIVE_PIPE.setVisible(False)
