@@ -564,8 +564,9 @@ class NodeGraph(QtCore.QObject):
         toggle the node search widget visibility.
         """
         if self._viewer.underMouse():
-            self._viewer.tab_search_set_nodes(self._node_factory.names)
-            self._viewer.tab_search_toggle()
+            state = self._viewer._search_widget.isVisible()
+            self._viewer.set_tab_search_nodes.emit(self._node_factory.names)
+            self._viewer.show_tab_search.emit(not state)
 
     def show(self):
         """

@@ -52,6 +52,8 @@ class NodeViewer(QtWidgets.QGraphicsView):
     node_double_clicked = QtCore.Signal(str)
     data_dropped = QtCore.Signal(QtCore.QMimeData, object)
     context_menu_prompt = QtCore.Signal(str, object)
+    show_tab_search = QtCore.Signal(bool)
+    set_tab_search_nodes = QtCore.Signal(dict)
 
     def __init__(self, parent=None, undo_stack=None):
         """
@@ -70,7 +72,6 @@ class NodeViewer(QtWidgets.QGraphicsView):
         self.setViewportUpdateMode(QtWidgets.QGraphicsView.BoundingRectViewportUpdate)
         self.setCacheMode(QtWidgets.QGraphicsView.CacheBackground)
         self.setOptimizationFlag(QtWidgets.QGraphicsView.DontAdjustForAntialiasing)
-
         self.setAcceptDrops(True)
         self.resize(850, 800)
 
@@ -160,6 +161,10 @@ class NodeViewer(QtWidgets.QGraphicsView):
         # TODO: maybe this should be a reference to the graph model instead?
         self.accept_connection_types = None
         self.reject_connection_types = None
+
+        self.show_tab_search.connect(self.tab_search_show)
+        self.set_tab_search_nodes.connect(self.tab_search_set_nodes)
+
 
     def __repr__(self):
         return '<{}() object at {}>'.format(
@@ -402,8 +407,7 @@ class NodeViewer(QtWidgets.QGraphicsView):
          self._prev_selection_pipes) = self.selected_items()
 
         # close tab search
-        if self._search_widget.isVisible():
-            self.tab_search_toggle()
+        self.show_tab_search.emit(False)
 
         # cursor pos.
         map_pos = self.mapToScene(event.pos())
@@ -1189,10 +1193,9 @@ class NodeViewer(QtWidgets.QGraphicsView):
     def tab_search_set_nodes(self, nodes):
         self._search_widget.set_nodes(nodes)
 
-    def tab_search_toggle(self):
-        state = self._search_widget.isVisible()
-        if not state:
-            self._search_widget.setVisible(state)
+    def tab_search_show(self, show):
+        if show:
+            self._search_widget.setVisible(True)
             self.setFocus()
             return
 
@@ -1201,7 +1204,7 @@ class NodeViewer(QtWidgets.QGraphicsView):
         new_pos = QtCore.QPoint(int(pos.x() - rect.width() / 2),
                                 int(pos.y() - rect.height() / 2))
         self._search_widget.move(new_pos)
-        self._search_widget.setVisible(state)
+        self._search_widget.setVisible(show)
         self._search_widget.setFocus()
 
         rect = self.mapToScene(rect).boundingRect()
@@ -1662,3 +1665,9 @@ class NodeViewer(QtWidgets.QGraphicsView):
         self._LIVE_PIPE = self.live_pipe_item_class()
         self._LIVE_PIPE.setVisible(False)
         self.scene().addItem(self._LIVE_PIPE)
+
+    def setSearchWidget(self, new_tree_search_widget):
+        self._search_widget = new_tree_search_widget
+        
+    def getOnSearchSubmitted(self):
+        return self._on_search_submitted
