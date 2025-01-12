@@ -3,7 +3,7 @@ from Qt import QtWidgets, QtCore, QtGui
 from NodeGraphQt.constants import NodeEnum, ViewerNavEnum
 
 
-class NodeNavigationDelagate(QtWidgets.QStyledItemDelegate):
+class NodeNavigationDelegate(QtWidgets.QStyledItemDelegate):
 
     def paint(self, painter, option, index):
         """
@@ -13,7 +13,7 @@ class NodeNavigationDelagate(QtWidgets.QStyledItemDelegate):
             index (QtCore.QModelIndex):
         """
         if index.column() != 0:
-            super(NodeNavigationDelagate, self).paint(painter, option, index)
+            super(NodeNavigationDelegate, self).paint(painter, option, index)
             return
 
         item = index.model().item(index.row(), index.column())
@@ -99,10 +99,10 @@ class NodeNavigationWidget(QtWidgets.QListView):
 
     def __init__(self, parent=None):
         super(NodeNavigationWidget, self).__init__(parent)
-        self.setSelectionMode(self.SingleSelection)
-        self.setResizeMode(self.Adjust)
-        self.setViewMode(self.ListMode)
-        self.setFlow(self.LeftToRight)
+        self.setSelectionMode(QtWidgets.QListView.SelectionMode.SingleSelection)
+        self.setResizeMode(QtWidgets.QListView.ResizeMode.Adjust)
+        self.setViewMode(QtWidgets.QListView.ViewMode.ListMode)
+        self.setFlow(QtWidgets.QListView.Flow.LeftToRight)
         self.setDragEnabled(False)
         self.setMinimumHeight(20)
         self.setMaximumHeight(36)
@@ -114,7 +114,7 @@ class NodeNavigationWidget(QtWidgets.QListView):
             .format(*ViewerNavEnum.BACKGROUND_COLOR.value)
         )
 
-        self.setItemDelegate(NodeNavigationDelagate(self))
+        self.setItemDelegate(NodeNavigationDelegate(self))
         self.setModel(QtGui.QStandardItemModel())
 
     def keyPressEvent(self, event):
