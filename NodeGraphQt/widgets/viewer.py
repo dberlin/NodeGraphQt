@@ -45,6 +45,10 @@ class NodeViewer(QtWidgets.QGraphicsView):
     insert_node = QtCore.Signal(object, str, object)
     node_name_changed = QtCore.Signal(str, str)
     node_backdrop_updated = QtCore.Signal(str, str, object)
+    show_tab_search = QtCore.Signal(bool)
+    set_tab_search_nodes = QtCore.Signal(dict)
+    set_tab_search_filter_kind = QtCore.Signal(str)
+    set_tab_search_filter_text = QtCore.Signal(str)
 
     # pass through signals that are translated into "NodeGraph()" signals.
     node_selected = QtCore.Signal(str)
@@ -52,8 +56,6 @@ class NodeViewer(QtWidgets.QGraphicsView):
     node_double_clicked = QtCore.Signal(str)
     data_dropped = QtCore.Signal(QtCore.QMimeData, object)
     context_menu_prompt = QtCore.Signal(str, object)
-    show_tab_search = QtCore.Signal(bool)
-    set_tab_search_nodes = QtCore.Signal(dict)
 
     def __init__(self, parent=None, undo_stack=None):
         """
@@ -113,7 +115,6 @@ class NodeViewer(QtWidgets.QGraphicsView):
         self._cursor_text.setFont(font)
         self.scene().addItem(self._cursor_text)
 
-
         self.set_live_pipe_item_class(LivePipeItem)
         self._LIVE_PIPE.setVisible(False)
         self.scene().addItem(self._LIVE_PIPE)
@@ -164,7 +165,8 @@ class NodeViewer(QtWidgets.QGraphicsView):
 
         self.show_tab_search.connect(self.tab_search_show)
         self.set_tab_search_nodes.connect(self.tab_search_set_nodes)
-
+        self.set_tab_search_filter_kind.connect(self.tab_search_set_filter_kind)
+        self.set_tab_search_filter_text.connect(self.tab_search_set_filter_text)
 
     def __repr__(self):
         return '<{}() object at {}>'.format(
@@ -1190,6 +1192,14 @@ class NodeViewer(QtWidgets.QGraphicsView):
 
     # --- viewer ---
 
+    def tab_search_set_filter_kind(self, kind):
+        if hasattr(self._search_widget, 'set_filter_kind'):
+            self._search_widget.set_filter_kind(kind)
+
+    def tab_search_set_filter_text(self, text):
+        if hasattr(self._search_widget, 'set_filter_text'):
+            self._search_widget.set_filter_text(text)
+
     def tab_search_set_nodes(self, nodes):
         self._search_widget.set_nodes(nodes)
 
@@ -1668,6 +1678,6 @@ class NodeViewer(QtWidgets.QGraphicsView):
 
     def setSearchWidget(self, new_tree_search_widget):
         self._search_widget = new_tree_search_widget
-        
+
     def getOnSearchSubmitted(self):
         return self._on_search_submitted
