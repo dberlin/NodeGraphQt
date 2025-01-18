@@ -61,6 +61,35 @@ class BaseNode(NodeObject):
         self._inputs = []
         self._outputs = []
 
+
+    def reorder_input_ports(self, sort_order):
+        """
+        Reorder the input ports on the node according to sort order.
+        Updates the view items as well.
+        The model does not have a sort order and so is unchanged.
+        """
+        self._inputs.sort(key=lambda x: sort_order.get(x.name(), 0))
+        old_input_dict = self.view._input_items
+        new_input_dict = OrderedDict()
+        for key in sorted(old_input_dict.keys(), key=lambda x: sort_order.get(x.name, 0)):
+            new_input_dict[key] = old_input_dict[key]
+        self.view._input_items = new_input_dict
+        self.view.draw_node()
+
+    def reorder_output_ports(self, sort_order):
+        """
+        Reorder the output ports on the node according to sort order.
+        Updates the view items as well.
+        The model does not have a sort order and so is unchanged.
+        """
+        self._outputs.sort(key=lambda x: sort_order.get(x.name(), 0))
+        old_output_dict = self.view._output_items
+        new_output_dict = OrderedDict()
+        for key in sorted(old_output_dict.keys(), key=lambda x: sort_order.get(x.name, 0)):
+            new_output_dict[key] = old_output_dict[key]
+        self.view._output_items = new_output_dict
+        self.view.draw_node()
+
     def update_model(self):
         """
         Update the node model from view.

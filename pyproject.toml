@@ -12,6 +12,7 @@ pyside6 = "^6.8.1.1"
 setuptools = "^75.6.0"
 wheel = "^0.45.1"
 qt-py = "^1.4.1"
+networkx = {extras = ["default"], version = "^3.4.2"}
 
 
 [build-system]
