@@ -573,6 +573,7 @@ class LivePipeItem(PipeItem):
         color = self.pen().color()
         color.setAlpha(80)
         self._idx_text = QtWidgets.QGraphicsTextItem(self)
+        self._idx_text.setCacheMode(ITEM_CACHE_MODE)
         self._idx_text.setDefaultTextColor(color)
         font = self._idx_text.font()
         font.setPointSize(7)

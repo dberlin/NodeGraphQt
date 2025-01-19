@@ -1,5 +1,7 @@
 from Qt import QtWidgets, QtCore, QtGui
 
+from NodeGraphQt.constants import ITEM_CACHE_MODE
+
 
 class NodeTextItem(QtWidgets.QGraphicsTextItem):
     """
@@ -8,6 +10,7 @@ class NodeTextItem(QtWidgets.QGraphicsTextItem):
 
     def __init__(self, text, parent=None):
         super(NodeTextItem, self).__init__(text, parent)
+        self.setCacheMode(ITEM_CACHE_MODE)
         self._locked = False
         self.set_locked(False)
         self.set_editable(False)
