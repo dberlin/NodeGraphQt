@@ -1,20 +1,14 @@
-[tool.poetry]
+[project]
 name = "NodeGraphQt"
 version = "0.1.0"
 description = ""
-authors = ["Daniel Berlin <dberlin@dberlin.org>"]
+authors = [{ name = "Daniel Berlin", email = "dberlin@dberlin.org" }]
+requires-python = ">=3.13"
 readme = "README.md"
-
-packages = [{ include = "NodeGraphQt" }]
-[tool.poetry.dependencies]
-python = ">=3.10 <=3.13"
-pyside6 = "^6.8.1.1"
-setuptools = "^75.6.0"
-wheel = "^0.45.1"
-qt-py = "^1.4.1"
-networkx = { extras = ["default"], version = "^3.4.2" }
-
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+dependencies = [
+  "pyside6>=6.8.1.1,<7",
+  "setuptools>=75.6.0,<76",
+  "wheel>=0.45.1,<0.46",
+  "qt-py>=1.4.1,<2",
+  "networkx[default]>=3.4.2,<4",
+]
